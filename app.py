@@ -21,7 +21,10 @@ from flask import Flask, render_template
 app=Flask(__name__)
 
 def shell_exec(*args):
-	return subprocess.Popen(args, stdout=subprocess.PIPE).communicate()[0]
+	try:
+		return subprocess.Popen(args, stdout=subprocess.PIPE).communicate()[0]
+	except OSError as e:
+		return e
 
 @app.route("/")
 def home():

@@ -1,6 +1,38 @@
 <!doctype html>
 <html><head>
 <title>{% block title %}{{TITLE|default("Init")}}{%endblock%}</title>
+<style>
+body {  font-family: sans-serif; }
+.item-group {
+	border:1px solid #ccc;
+	margin:10px;
+	padding:10px;
+	border-radius:5px;
+	box-shadow: 1px 1px 7px #666;
+}
+.item-group h3 {
+	margin: 0 0 10px;
+}
+.cmd-output {
+	background: #272822;
+	color: #FFF;
+	font-weight: normal;
+	padding: 10px 10px 40px;
+	border-radius:5px;
+}
+.cmd-output .cmd-exe {
+	color: #f44;
+	text-shadow:1px 1px 1px #000;
+}
+.item-op {
+	display: inline-block;
+	border:1px solid #ccc;
+	border-radius:20px;
+	padding:2px 10px;
+	margin:0 5px;
+	box-shadow: 1px 1px 2px #777;
+}
+</style>
 </head><body>
 {%block content%}
 

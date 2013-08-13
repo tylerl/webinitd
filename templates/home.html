@@ -3,15 +3,15 @@
 <h1>Service Listing</h1>
 {%for name,item in SERVICES.iteritems()%}
 	<div class="item-group">
-	<h3>{{item.title}}</h3>
-	<div class="item-ops">
-		{% for op in item.ops %}
-			<span class="item-op"><a href="/exec/{{item.name}}/{{op}}">{{op}}</a> </span>
-		{%endfor%}
-	</div>
-	{% if item.status %}
-	<div class="item-status">
-		{{item.get_status()}}
+		<h3>{{item.title}}</h3>
+		<div class="item-ops">
+			{% for op in item.ops %}
+				<span class="item-op"><a href="/exec/{{item.name}}/{{op}}">{{op}}</a> </span>
+			{%endfor%}
+		</div>
+		{% if item.status %}
+		<pre class="cmd-output"><span class="cmd-exe"># status</span>
+ {{item.get_status()}}</pre>
 	</div>
 	{% endif %}
 {%endfor%}
