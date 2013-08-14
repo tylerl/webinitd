@@ -21,20 +21,36 @@ body {  font-family: sans-serif; }
 	border-radius:5px;
 }
 .cmd-output .cmd-exe {
-	color: #f44;
+	color: #8acd1e;
 	text-shadow:1px 1px 1px #000;
 }
-.item-op {
+.cmd-output .out-stderr {
+	color: #F33;
+}
+.item-op, .btnlink {
 	display: inline-block;
-	border:1px solid #ccc;
-	border-radius:20px;
+	border:0;
+	border-radius:10px;
 	padding:2px 10px;
 	margin:0 5px;
 	box-shadow: 1px 1px 2px #777;
+	text-decoration:none;
+
+	background-color: rgb(0, 109, 204);
+	background-image: linear-gradient(rgb(0, 136, 204), rgb(0, 68, 204));
+	color: white;
 }
 </style>
 </head><body>
 {%block content%}
+{%endblock%}
+
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+<script>window.jQuery || document.write('<script src="{{
+  url_for('static', filename='jquery-1.10.2.min.js') }}">\x3C/script>')</script>
+
+{%block script%}
 
 {%endblock%}
+
 </body></html>

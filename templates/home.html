@@ -6,14 +6,27 @@
 		<h3>{{item.title}}</h3>
 		<div class="item-ops">
 			{% for op in item.ops %}
-				<span class="item-op"><a href="/exec/{{item.name}}/{{op}}">{{op}}</a> </span>
+				<a class="item-op" href="/exec/{{item.name}}/{{op}}">{{op}}</a>
 			{%endfor%}
 		</div>
 		{% if item.status %}
-		<pre class="cmd-output"><span class="cmd-exe"># status</span>
- {{item.get_status()}}</pre>
+			<pre class="cmd-output"><span class="cmd-exe"># /etc/init.d/{{item.name}} status</span>
+{%with out=item.get_status()-%}
+{%for line in out%}<span class="out-{{line.source}}">{{line|noansi|e}}</span>{%endfor%}
+{%-endwith%}</pre>
+		{% endif %}
 	</div>
-	{% endif %}
 {%endfor%}
+{% endblock%}
+
+{%block script%}
+<script>
+$(function() {
+	$("#item-op").click(function() {
+		alert("hello");
+		return false;
+	});
+});
+</script>
 
 {% endblock%}
