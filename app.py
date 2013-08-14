@@ -113,12 +113,15 @@ def run(use_sudo,services,logins):
 	_SETTINGS['logins']=logins
 
 	import getopt,sys
-	USAGE = "[-d (debug) [-host <host>] [-port <port>] [--password <auth_password>]"
+	USAGE = "[-d (debug) [-host <host>] [-port <port>] [-c <ssl cert>] [-k <ssl key>] [--password <auth_password>]"
 	host=None
 	port=None
+	cert=None
+	key=None
 	debug=False
 	try:
-		optlist, args = getopt.getopt(sys.argv[1:],"dp:h:a:",['debug','host=','port=','help','password='])
+		optlist, args = getopt.getopt(sys.argv[1:],"dp:h:a:c:k:",
+			['debug','host=','port=','help','password=','cert=','key='])
 	except getopt.GetoptError as err:
 		print err
 		print USAGE
@@ -136,8 +139,21 @@ def run(use_sudo,services,logins):
 		elif opt in ('--password'):
 			print genhash(val)
 			sys.exit()
-
+		elif opt in ('-c','--cert'):
+			cert=val
+		elif opt in ('-k','--key'):
+			key=val
+	if cert and not key: key=cert
+	if key and not cert: cert=key
 	app.debug=debug
 	if not port: port=8123
 	if not host: host='0.0.0.0'
-	app.run(host=host,port=port)
+	run_args={'host':host,'port':port}
+	if cert:
+		from OpenSSL import SSL
+		context=SSL.Context(SSL.SSLv23_METHOD)
+		context.use_privatekey_file(key)
+		context.use_certificate_file(cert)
+		run_args['ssl_context']=context
+	app.run(**run_args)
+
