@@ -26,7 +26,7 @@ def run(*args):
 	err_r,err_w = os.pipe()
 	output_lines=[]
 
-	for fd in [err_r,err_w,pty_master,pty_slave]: _set_close_exec(fd)  # security measure
+	for fd in [err_r,err_w,pty_master,pty_slave]: set_close_exec(fd)  # security measure
 	proc = subprocess.Popen(args, stdin=pty_slave, stdout=pty_slave, stderr=err_w)
 	for fd in [pty_slave, err_w]: os.close(fd)  # not ours anymore
 
@@ -72,7 +72,7 @@ def _append_tag(list_,tag):
 		list_.append(_str(s))
 	return fn
 
-def _set_close_exec(fd):
+def set_close_exec(fd):
 	old = fcntl.fcntl(fd,fcntl.F_GETFD)
 	fcntl.fcntl(fd,fcntl.F_SETFD, old | fcntl.FD_CLOEXEC)
 

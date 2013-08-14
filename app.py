@@ -1,10 +1,11 @@
-import ptyexec
 import re
-from flask import Flask, render_template, abort, request, Response  # , url_for
-from functools import wraps
-import hashlib
-import random
+import os
 import base64
+import random
+import hashlib
+import ptyexec
+from functools import wraps
+from flask import Flask, render_template, abort, request, Response  # , url_for
 
 _SETTINGS={}
 
@@ -95,15 +96,23 @@ class Service(object):
 		return self._do_exec(self.status)
 
 	def _do_exec(self,item):
+		secure_fds()  # prevent FDs from leaking to child proc
 		if _SETTINGS['sudo']:
 			return ptyexec.run('sudo','/etc/init.d/%s'%(self.name),item)		
 		return ptyexec.run('/etc/init.d/%s'%(self.name),item)		
 
-
-
 ansi_escape = re.compile(r'\x1b\[[0-9;]*[a-zA-Z]')
 def _strip_ansi(s):
 	return ansi_escape.sub('',s)
+
+FDS_SECURED=False
+def secure_fds():
+	global FDS_SECURED
+	if FDS_SECURED: return  # only need to do this once
+	for item in os.listdir("/proc/self/fd/"):
+		try: ptyexec.set_close_exec(int(item))
+		except: pass  # give it the ol' college-try
+	FDS_SECURED=True
 
 ##############################################################
 
