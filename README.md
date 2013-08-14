@@ -21,7 +21,7 @@ E.g.
 
 Next get your authentication in order. Run the app like this:
 
-    ./app.py --password=my_password
+    ./webinitd.py --password=my_password
 
 That'll spit out a password hash that you put into your auth dict that looks like this:
 
@@ -30,5 +30,5 @@ That'll spit out a password hash that you put into your auth dict that looks lik
 	}
 
 
-Finally, run app.py and hit it with your browser with the optional `-h` and `-p`
+Finally, run webinitd.py and hit it with your browser with the optional `-h` and `-p`
 parameters to specify a host and port.

@@ -1,24 +1,3 @@
-#!/usr/bin/python
-
-USE_SUDO=False
-SERVICES= {
-	'apache2': {
-		'title': 'Apache Web Server',
-		'ops': ['status', 'stop','start','graceful'],
-		'status': 'status'
-	},
-	'ssh': {
-		'title': 'SSH Server',
-		'ops': ['status','stop','start','restart'],
-		'status': 'status'
-	},
-}
-
-LOGINS = {
-	'admin': 'sha256:10240:FcbYJZ4Z:ZDHbf8Gx/GDXVD3W33xjqnEuf3TWv41rGrSig8fM7d4=',
-}
-
-##############################################################
 import ptyexec
 import re
 from flask import Flask, render_template, abort, request, Response  # , url_for
@@ -26,6 +5,8 @@ from functools import wraps
 import hashlib
 import random
 import base64
+
+_SETTINGS={}
 
 app=Flask(__name__,static_folder='templates/static')
 def require_auth(f):
@@ -46,7 +27,7 @@ def home():
 @require_auth
 def exec_cmd(cmd,op):
 	try: 
-		svc = SVC[cmd]
+		svc = _SETTINGS['services'][cmd]
 		if not op in svc.ops:
 			abort(404)
 	except KeyError:
@@ -62,7 +43,7 @@ def exec_cmd(cmd,op):
 
 @app.context_processor
 def services_processor():
-	return {"SERVICES":SVC}
+	return {"SERVICES":_SETTINGS['services']}
 
 @app.template_filter('noansi')
 def noansi(s):
@@ -80,7 +61,7 @@ def authenticate():
 ###############################################################
 
 def check_auth(username,password):
-	try: digest = LOGINS[username]
+	try: digest = _SETTINGS['logins'][username]
 	except KeyError: return False
 	return testhash(password,digest)
 
@@ -105,25 +86,32 @@ def testhash(password,line):
 
 
 class Service(object):
-	def __init__(self,name):
+	def __init__(self,name,details):
 		self.name=name
-		for k,v in SERVICES[name].iteritems():
+		for k,v in details.iteritems():
 			setattr(self,k,v)
 
 	def get_status(self):
 		return self._do_exec(self.status)
 
 	def _do_exec(self,item):
+		if _SETTINGS['sudo']:
+			return ptyexec.run('sudo','/etc/init.d/%s'%(self.name),item)		
 		return ptyexec.run('/etc/init.d/%s'%(self.name),item)		
 
-SVC = dict([(k,Service(k)) for k in SERVICES.keys()])
+
 
 ansi_escape = re.compile(r'\x1b\[[0-9;]*[a-zA-Z]')
 def _strip_ansi(s):
 	return ansi_escape.sub('',s)
 
 ##############################################################
-if __name__=="__main__":
+
+def run(use_sudo,services,logins):
+	_SETTINGS['sudo']=use_sudo
+	_SETTINGS['services']=dict([(k,Service(k,v)) for k,v in services.iteritems()])
+	_SETTINGS['logins']=logins
+
 	import getopt,sys
 	USAGE = "[-d (debug) [-host <host>] [-port <port>] [--password <auth_password>]"
 	host=None
