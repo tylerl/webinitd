@@ -98,7 +98,7 @@ class Service(object):
 	def _do_exec(self,item):
 		secure_fds()  # prevent FDs from leaking to child proc
 		if _SETTINGS['sudo']:
-			return ptyexec.run('sudo','/etc/init.d/%s'%(self.name),item)		
+			return ptyexec.run('/usr/bin/sudo','/etc/init.d/%s'%(self.name),item)		
 		return ptyexec.run('/etc/init.d/%s'%(self.name),item)		
 
 ansi_escape = re.compile(r'\x1b\[[0-9;]*[a-zA-Z]')
@@ -122,7 +122,7 @@ def run(use_sudo,services,logins):
 	_SETTINGS['logins']=logins
 
 	import getopt,sys
-	USAGE = "[-d (debug) [-host <host>] [-port <port>] [-c <ssl cert>] [-k <ssl key>] [--password <auth_password>]"
+	USAGE = "[-d (debug)] [-host <host>] [-port <port>] [-c <ssl cert>] [-k <ssl key>] [--password <auth_password>]"
 	host=None
 	port=None
 	cert=None
@@ -157,7 +157,7 @@ def run(use_sudo,services,logins):
 	app.debug=debug
 	if not port: port=8123
 	if not host: host='0.0.0.0'
-	run_args={'host':host,'port':port}
+	run_args={'host':host,'port':port,'use_reloader':False}
 	if cert:
 		from OpenSSL import SSL
 		context=SSL.Context(SSL.SSLv23_METHOD)

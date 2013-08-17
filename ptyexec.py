@@ -1,9 +1,9 @@
-import pty
-import subprocess
-import select
 import os
+import pty
 import errno
 import fcntl
+import select
+#import subprocess
 
 def run(*args):
 	'''
@@ -20,23 +20,26 @@ def run(*args):
 	instead of block-buffered. This helps preserve the ordering of stdout/stderr text.
 	'''
 
-	pty_master,pty_slave = pty.openpty()
-	#out_r,out_w = pty.openpty()
-	#out_r,out_w = os.pipe()
 	err_r,err_w = os.pipe()
 	output_lines=[]
 
-	for fd in [err_r,err_w,pty_master,pty_slave]: set_close_exec(fd)  # security measure
-	proc = subprocess.Popen(args, stdin=pty_slave, stdout=pty_slave, stderr=err_w)
-	for fd in [pty_slave, err_w]: os.close(fd)  # not ours anymore
+	forkpid, forkfd = pty.fork()
+	if forkpid==0:  # child process
+		os.dup2(err_w,2)  # replace stderr
+		os.close(0)
+		os.execv(args[0],args)
+		raise OSError("Failed exec")
+		# notreached
+
+	os.close(err_w)  # not ours
 
 	poll=select.poll()
 	fdmap = { 
-		pty_master: _append_tag(output_lines,"stdout"),
+		forkfd: _append_tag(output_lines,"stdout"),
 		err_r: _append_tag(output_lines,"stderr"),
 	}
 	POLL_INPRI = select.POLLIN | select.POLLPRI
-	poll.register(pty_master, POLL_INPRI)
+	poll.register(forkfd, POLL_INPRI)
 	poll.register(err_r, POLL_INPRI)
 
 	def close_and_remove(fd):
@@ -60,7 +63,7 @@ def run(*args):
 					close_and_remove(fd)
 			else:
 				close_and_remove(fd)
-	proc.wait()
+	os.waitpid(forkpid,0)
 	return output_lines
 
 ##################################################################
