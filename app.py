@@ -122,21 +122,37 @@ def run(use_sudo,services,logins):
 	_SETTINGS['logins']=logins
 
 	import getopt,sys
-	USAGE = "[-d (debug)] [-host <host>] [-port <port>] [-c <ssl cert>] [-k <ssl key>] [--password <auth_password>]"
+	USAGE = """Options:
+	-?  --help        This message
+	-d                debug mode (show exception trace in web page)
+	-h <host>         listen host 
+	-p <port>         listen port
+	-c <cert file>    ssl certificate file
+	-k <key file>     ssl key file (if different)
+    -P <file>         PID file
+    -l <log>          log file
+    
+    -- or --
+
+	--password <auth_password>      generate and display an auth password hash (then exit)
+ """
+	
 	host=None
 	port=None
 	cert=None
 	key=None
 	debug=False
+	pidfile=None
+	logfile=None
 	try:
-		optlist, args = getopt.getopt(sys.argv[1:],"dp:h:a:c:k:",
-			['debug','host=','port=','help','password=','cert=','key='])
+		optlist, args = getopt.getopt(sys.argv[1:],"?dp:h:a:c:k:P:l:",
+			['debug','host=','port=','help','password=','cert=','key=','pid=','log='])
 	except getopt.GetoptError as err:
 		print err
 		print USAGE
 		sys.exit()
 	for opt,val in optlist:
-		if opt == '--help':
+		if opt in ('-?' '--help'):
 			print USAGE
 			sys.exit()
 		elif opt in ('-h','--host'):
@@ -152,6 +168,11 @@ def run(use_sudo,services,logins):
 			cert=val
 		elif opt in ('-k','--key'):
 			key=val
+		elif opt in ('-P','--pid'):
+			pidfile=val
+		elif opt in ('-l','--log'):
+			logfile=val
+
 	if cert and not key: key=cert
 	if key and not cert: cert=key
 	app.debug=debug
@@ -164,5 +185,17 @@ def run(use_sudo,services,logins):
 		context.use_privatekey_file(key)
 		context.use_certificate_file(cert)
 		run_args['ssl_context']=context
+
+	if pidfile:
+		pid=os.getpid()
+		with open(pidfile,"w") as f:
+			f.write("%i" % pid)
+
+	if logfile:
+		lfn = os.open(logfile,os.O_WRONLY | os.O_APPEND | os.O_CREAT,0644)
+		os.dup2(lfn,1)
+		os.dup2(lfn,2)
+		ptyexec.set_close_exec(lfn)
+
 	app.run(**run_args)
 
