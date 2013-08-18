@@ -1,10 +1,14 @@
 import re
 import os
+import hmac
 import base64
 import random
 import hashlib
 import ptyexec
+from operator import xor
+from struct import Struct
 from functools import wraps
+from itertools import izip, starmap
 from flask import Flask, render_template, abort, request, Response  # , url_for
 
 _SETTINGS={}
@@ -41,6 +45,10 @@ def exec_cmd(cmd,op):
 		return rtn
 	return render_template("exec.html", svc=svc,op=op,out=out)
 
+@app.route("/favicon.ico")
+def favicon():
+	return Response(TERM_ICO,200,content_type='image/ico')
+	
 
 @app.context_processor
 def services_processor():
@@ -66,19 +74,39 @@ def check_auth(username,password):
 	except KeyError: return False
 	return testhash(password,digest)
 
-def genhash(password,iterations=10240,salt=None,algo="sha256"):
+def genhash(password,iterations=1024,salt=None,algo="sha256",keylen=32):
 	if not salt:
 		alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
 		salt=""
 		while len(salt) < 8:
 			salt += random.choice(alphabet)
-	i=0
-	plain=salt+":"+password
-	h = getattr(hashlib,algo)()
-	while i < iterations:
-		i+=1
-		h.update(plain)
-	return "sha256:%s:%s:%s" % (iterations, salt, base64.b64encode(h.digest()))
+	hashfunc = getattr(hashlib,algo)
+	hashed = pbkdf2(password,salt,iterations,keylen,hashfunc)
+
+	return "sha256:%s:%s:%s" % (iterations, salt, base64.b64encode(hashed))
+
+def pbkdf2(data, salt, iterations, keylen, hashfunc=None):
+	"""Returns a binary digest for the PBKDF2 hash algorithm of `data`
+	with the given `salt`.  It iterates `iterations` time and produces a
+	key of `keylen` bytes.
+	* Implementation shamelessly stolen from: 
+	  https://github.com/mitsuhiko/python-pbkdf2/
+	"""
+	_pack_int = Struct('>I').pack
+	mac = hmac.new(data, None, hashfunc)
+	def _pseudorandom(x, mac=mac):
+		h = mac.copy()
+		h.update(x)
+		return map(ord, h.digest())
+	buf = []
+	for block in xrange(1, -(-keylen // mac.digest_size) + 1):
+		rv = u = _pseudorandom(salt + _pack_int(block))
+		for i in xrange(iterations - 1):
+			u = _pseudorandom(''.join(map(chr, u)))
+			rv = starmap(xor, izip(rv, u))
+		buf.extend(rv)
+	return ''.join(map(chr, buf))[:keylen]
+
 
 def testhash(password,line):
 	algo,iterations,salt,digest = line.split(":")
@@ -123,19 +151,19 @@ def run(use_sudo,services,logins):
 
 	import getopt,sys
 	USAGE = """Options:
-        -?  --help        This message
-        -d                debug mode (show exception trace in web page)
-        -h <host>         listen host 
-        -p <port>         listen port
-        -c <cert file>    ssl certificate file
-        -k <key file>     ssl key file (if different)
-        -P <file>         PID file
-        -l <log>          log file
-        -D                daemon mode (fork and setsid)
-    
-     -- or --
+	-?  --help        This message
+	-d                debug mode (show exception trace in web page)
+	-h <host>         listen host 
+	-p <port>         listen port
+	-c <cert file>    ssl certificate file
+	-k <key file>     ssl key file (if different)
+	-P <file>         PID file
+	-l <log>          log file
+	-D                daemon mode (fork and setsid)
 
-        --password <auth_password>      generate and display an auth password hash (then exit)
+	-- or --
+
+	--password <auth_password>      generate and display an auth password hash (then exit)
  """
 	
 	host=None
@@ -216,3 +244,26 @@ def run(use_sudo,services,logins):
 
 	app.run(**run_args)
 
+# it's be a shame to waste a whole file on this
+TERM_ICO=base64.b64decode("""
+AAABAAEAEBAAAAAAIABoBAAAFgAAACgAAAAQAAAAIAAAAAEAIAAAAAAAQAQAAAAAAAAAAAAAAAAA
+AAAAAAD///8B////Af///wH///8B////Af///wH///8B////Af///wH///8B////Af///wH///8B
+////Af///wH///8Bw5Ftm8OOaP/Ai2b/vohk/7uFYf+5g1//toBe/7R+XP+yfFr/sXtY/655V/+t
+dlb/q3VU/6lzU/+pcVH/o3BRm8iSbP9SUlL/U1NT/1RUVP9VVVX/VlZW/1dXV/9XV1f/WFhY/1lZ
+Wf9aWlr/W1tb/1xcXP9cXFz/XV1d/6lyUf/KlG7/Tk5O/z09Pf89PT3/Pj4+/z8/P/9BQUH/QkJC
+/0NDQ/9ERET/RUVF/0ZGRv9GRkb/SEhI/1paWv+qc1P/zJdv/0tLS/84ODj/OTk5/zo6Ov88PDz/
+PT09/z8/P/8/Pz//QUFB/0JCQv9CQkL/RERE/0VFRf9XV1f/rHVU/8+acv9HR0f/MzMz/zQ0NP82
+Njb/Nzc3/zk5Of86Ojr/Ozs7/zw8PP8+Pj7/Pz8//0BAQP9BQUH/VVVV/614Vv/RnHP/QkJC/y8v
+L/8wMDD/MTEx/zMzM/80NDT/NjY2/zY2Nv84ODj/Ojo6/zs7O/89PT3/PT09/1JSUv+welj/1J51
+/z09Pf8pKSn/0dHR/62trf8uLi7/Ly8v/zExMf8yMjL/NDQ0/zY2Nv83Nzf/ODg4/zo6Ov9OTk7/
+snxa/9Wgdv85OTn/JSUl/yYmJv/e3t7/dHR0/yoqKv8sLCz/LS0t/y8vL/8xMTH/MjIy/zQ0NP81
+NTX/S0tL/7V+XP/Yonn/NDQ0/yAgIP/Pz8//qKio/yQkJP8lJSX/JiYm/ygoKP8qKir/LCws/y0t
+Lf8vLy//MTEx/0ZGRv+3gV7/2aN5/zQ0NP8gICD/ISEh/yIiIv8kJCT/JSUl/yYmJv8oKCj/Kioq
+/ywsLP8tLS3/Ly8v/zExMf9GRkb/uoVg/9ukev8xMTH/MjIy/zMzM/80NDT/NTU1/zY2Nv83Nzf/
+OTk5/zs7O/88PDz/PT09/z8/P/9BQUH/Q0ND/72HY//cp3v/26R6/9qjef/Yonn/16F4/9Wfdv/T
+nnT/0Zxz/8+acv/Nl3D/y5Vu/8mUbP/HkWv/xI9p/8ONZ//Ai2b/3ayF/fHczv/qwaD/6LmS/+i5
+kv/ouZL/6LmS/+i5kv/ouZL/zcjF/+i5kv/NyMX/6LmS/0Rk///oxKf/wZBv/d2shsPdsY313Kd7
+/9ymev/apHr/2KJ5/9ihef/VoHb/1J51/9Kdc//PmnL/zplw/8uWb//JlGz/xJp69cOTccP///8B
+////Af///wH///8B////Af///wH///8B////Af///wH///8B////Af///wH///8B////Af///wH/
+//8BAAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA
+//8AAP//AAD//w==""")
