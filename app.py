@@ -131,6 +131,7 @@ def run(use_sudo,services,logins):
 	-k <key file>     ssl key file (if different)
     -P <file>         PID file
     -l <log>          log file
+	-D                daemon mode (fork and setsid)
     
     -- or --
 
@@ -144,9 +145,10 @@ def run(use_sudo,services,logins):
 	debug=False
 	pidfile=None
 	logfile=None
+	daemon=False
 	try:
-		optlist, args = getopt.getopt(sys.argv[1:],"?dp:h:a:c:k:P:l:",
-			['debug','host=','port=','help','password=','cert=','key=','pid=','log='])
+		optlist, args = getopt.getopt(sys.argv[1:],"?Ddp:h:a:c:k:P:l:",
+			['debug','host=','port=','help','password=','cert=','key=','pid=','log=','daemon'])
 	except getopt.GetoptError as err:
 		print err
 		print USAGE
@@ -172,6 +174,8 @@ def run(use_sudo,services,logins):
 			pidfile=val
 		elif opt in ('-l','--log'):
 			logfile=val
+		elif opt in ('-D','--daemon'):
+			daemon=True
 
 	if cert and not key: key=cert
 	if key and not cert: cert=key
@@ -195,6 +199,19 @@ def run(use_sudo,services,logins):
 		lfn = os.open(logfile,os.O_WRONLY | os.O_APPEND | os.O_CREAT,0644)
 		os.dup2(lfn,1)
 		os.dup2(lfn,2)
+
+	# get all the errors out of the way before we go daemon mode	
+	if daemon:
+		pid = os.fork()
+		if pid:
+			sys.exit(0)  # Our work here is done
+		os.setsid()
+		os.close(0)
+		if not logfile:
+			os.close(1)
+			os.close(2)
+
+	if logfile:  # after we fork, cause just in case
 		ptyexec.set_close_exec(lfn)
 
 	app.run(**run_args)
