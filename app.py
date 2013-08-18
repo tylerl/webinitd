@@ -199,6 +199,7 @@ def run(use_sudo,services,logins):
 		lfn = os.open(logfile,os.O_WRONLY | os.O_APPEND | os.O_CREAT,0644)
 		os.dup2(lfn,1)
 		os.dup2(lfn,2)
+		ptyexec.set_close_exec(lfn)
 
 	# get all the errors out of the way before we go daemon mode	
 	if daemon:
@@ -210,9 +211,6 @@ def run(use_sudo,services,logins):
 		if not logfile:
 			os.close(1)
 			os.close(2)
-
-	if logfile:  # after we fork, cause just in case
-		ptyexec.set_close_exec(lfn)
 
 	app.run(**run_args)
 
