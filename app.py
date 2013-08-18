@@ -123,19 +123,19 @@ def run(use_sudo,services,logins):
 
 	import getopt,sys
 	USAGE = """Options:
-	-?  --help        This message
-	-d                debug mode (show exception trace in web page)
-	-h <host>         listen host 
-	-p <port>         listen port
-	-c <cert file>    ssl certificate file
-	-k <key file>     ssl key file (if different)
-    -P <file>         PID file
-    -l <log>          log file
-	-D                daemon mode (fork and setsid)
+        -?  --help        This message
+        -d                debug mode (show exception trace in web page)
+        -h <host>         listen host 
+        -p <port>         listen port
+        -c <cert file>    ssl certificate file
+        -k <key file>     ssl key file (if different)
+        -P <file>         PID file
+        -l <log>          log file
+        -D                daemon mode (fork and setsid)
     
-    -- or --
+     -- or --
 
-	--password <auth_password>      generate and display an auth password hash (then exit)
+        --password <auth_password>      generate and display an auth password hash (then exit)
  """
 	
 	host=None
@@ -190,16 +190,14 @@ def run(use_sudo,services,logins):
 		context.use_certificate_file(cert)
 		run_args['ssl_context']=context
 
-	if pidfile:
-		pid=os.getpid()
-		with open(pidfile,"w") as f:
-			f.write("%i" % pid)
-
 	if logfile:
 		lfn = os.open(logfile,os.O_WRONLY | os.O_APPEND | os.O_CREAT,0644)
 		os.dup2(lfn,1)
 		os.dup2(lfn,2)
 		ptyexec.set_close_exec(lfn)
+
+	if pidfile: # open before fork so we know we have perms
+		pidfile=open(pidfile,"w")
 
 	# get all the errors out of the way before we go daemon mode	
 	if daemon:
@@ -211,6 +209,10 @@ def run(use_sudo,services,logins):
 		if not logfile:
 			os.close(1)
 			os.close(2)
+
+	if pidfile:
+		pidfile.write("%i" % (os.getpid(),)) # write NEW pid
+		pidfile.close()
 
 	app.run(**run_args)
 
