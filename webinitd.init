@@ -1,0 +1,97 @@
+#!/bin/bash
+#
+# webinitd     Web interface for starting/stopping services
+#
+# chkconfig: - 90 10
+# description: web interface for controlling services
+# processname: webinitd
+# config: /etc/sysconfig/webinitd
+
+# Source function library.
+. /etc/rc.d/init.d/functions
+
+# Default daemon location (overridable in config file)
+NAME=webinitd
+EXE=/opt/webinitd/webinitd.py
+CONFIGFILE=/etc/sysconfig/$NAME
+
+# Default startup configuration
+# Override in /etc/sysconfig/$NAME
+USER=webinitd
+PIDFILE=/var/run/$NAME/run.pid
+LOGFILE=/var/log/$NAME/access_log
+ARGS=""
+#ARGS="-c /etc/pki/yoursslcert.pem"
+
+[ -f $CONFIGFILE ] && . $CONFIGFILE
+
+if [ ! -x $EXE ] ; then
+	if [[ ! -f $EXE ]]; then
+		echo "Program $EXE not found" >&2
+	else
+		echo "Program $EXE not marked as executable" >&2
+	fi
+	exit 2
+fi
+
+RETVAL=0
+
+checkdirs() {
+	PIDDIR=`dirname $PIDFILE`
+	if [[ -n $PIDDIR && ! -d $PIDDIR ]]; then
+		mkdir $PIDDIR
+		chown $USER $PIDDIR
+	fi
+	LOGDIR=`dirname $LOGFILE`
+	if [[ -n $LOGDIR && ! -d $LOGDIR ]]; then
+		mkdir $LOGDIR
+		chown $USER $LOGDIR
+	fi
+}
+
+start() {
+        echo -n $"Starting $NAME: "
+		checkdirs
+		chdir `dirname $EXE`
+        daemon --user=$USER $EXE -P $PIDFILE -l $LOGFILE -D $ARGS 
+        RETVAL=$?
+        echo
+        return $RETVAL
+}
+
+stop() {
+		[[ -f $PIDFILE ]] || return 1
+		PID=$(<$PIDFILE)
+		[[ -z $PID ]] && return 1
+        echo -n $"Shutting down $DESC: "
+		kill $PID
+        RETVAL=$?
+        echo
+        [ $RETVAL -eq 0 ] && rm -f $PIDFILE
+        return $RETVAL
+}
+
+# See how we were called.
+case "$1" in
+        start)
+                start
+                ;;
+        stop)
+                stop
+                ;;
+        restart|reload)
+                stop
+                start
+                RETVAL=$?
+                ;;
+        status)
+                status -p $PIDFILE $NAME
+                RETVAL=$?
+                ;;
+        *)
+                echo $"Usage: $0 {start|stop|restart|status}"
+                exit 1
+esac
+
+exit $RETVAL
+
